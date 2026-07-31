@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String?
+  firebaseUid       String?  @unique
+  displayName       String?
+  profileImage      String?
+  gender            String?
+  preferredLanguage String?
+  role              Role     @default(USER)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  playlists     Playlist[]
+  favorites     Favorite[]
+  downloads     Download[]
+  history       ListeningHistory[]
+  deviceTokens  DeviceToken[]
+  notifications Notification[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Artist {
+  id        String   @id @default(uuid())
+  name      String
+  bio       String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  albums Album[]
+  songs  Song[]
+}
+
+model Album {
+  id          String   @id @default(uuid())
+  title       String
+  releaseDate DateTime
+  coverImage  String?
+  artistId    String
+  artist      Artist   @relation(fields: [artistId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  songs Song[]
+}
+
+model Genre {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  imageUrl  String?
+  createdAt DateTime @default(now())
+
+  songs Song[]
+}
+
+model Song {
+  id       String  @id @default(uuid())
+  title    String
+  duration Int // Duration in seconds
+  fileUrl  String
+  lyrics   String?
+
+  coverImage String?
+  musicBy    String?
+  starring   String?
+  directedBy String?
+  label      String?
+
+  albumId String
+  album   Album  @relation(fields: [albumId], references: [id])
+
+  artistId String
+  artist   Artist @relation(fields: [artistId], references: [id])
+
+  genreId String?
+  genre   Genre?  @relation(fields: [genreId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  playlistSongs PlaylistSong[]
+  favorites     Favorite[]
+  downloads     Download[]
+  history       ListeningHistory[]
+}
+
+model Playlist {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  coverImage  String?
+  isPublic    Boolean @default(true)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  songs PlaylistSong[]
+}
+
+model PlaylistSong {
+  playlistId String
+  songId     String
+  addedAt    DateTime @default(now())
+
+  playlist Playlist @relation(fields: [playlistId], references: [id])
+  song     Song     @relation(fields: [songId], references: [id])
+
+  @@id([playlistId, songId])
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  songId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  song Song @relation(fields: [songId], references: [id])
+
+  @@unique([userId, songId])
+}
+
+model Download {
+  id        String   @id @default(uuid())
+  userId    String
+  songId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  song Song @relation(fields: [songId], references: [id])
+
+  @@unique([userId, songId])
+}
+
+model ListeningHistory {
+  id         String   @id @default(uuid())
+  userId     String
+  songId     String
+  listenedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  song Song @relation(fields: [songId], references: [id])
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
