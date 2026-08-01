@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Sonexa Music",
@@ -36,6 +37,7 @@ export default function RootLayout({
           </div>
           <Toaster />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
