@@ -20,6 +20,7 @@ type Song = {
   starring?: string;
   directedBy?: string;
   label?: string;
+  lyrics?: string;
 };
 
 export default function MusicManager() {
@@ -33,10 +34,13 @@ export default function MusicManager() {
   const [starring, setStarring] = useState("");
   const [directedBy, setDirectedBy] = useState("");
   const [labelName, setLabelName] = useState("");
+  const [lyrics, setLyrics] = useState("");
+  const [lrcFileName, setLrcFileName] = useState("");
   
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [coverProgress, setCoverProgress] = useState(0);
+  const [lastUploadStrategy, setLastUploadStrategy] = useState<string | null>(null);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -62,6 +66,33 @@ export default function MusicManager() {
   const [editCoverFile, setEditCoverFile] = useState<File | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editCoverProgress, setEditCoverProgress] = useState(0);
+  const [editLrcFileName, setEditLrcFileName] = useState("");
+
+  const handleLrcUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.lrc')) {
+      toast.error("Only .lrc files are accepted");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        if (isEdit) {
+          setEditForm(prev => ({ ...prev, lyrics: event.target?.result as string }));
+          setEditLrcFileName(file.name);
+        } else {
+          setLyrics(event.target.result as string);
+          setLrcFileName(file.name);
+        }
+        toast.success("LRC file loaded successfully");
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Error reading LRC file");
+    };
+    reader.readAsText(file);
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +122,7 @@ export default function MusicManager() {
             try {
               const res = JSON.parse(xhr.responseText);
               publicUrl = res.url;
+              if (res.strategy) setLastUploadStrategy(res.strategy);
               resolve(true);
             } catch (err) {
               reject(new Error('Invalid response from server'));
@@ -148,6 +180,7 @@ export default function MusicManager() {
           starring: starring.trim() || undefined,
           directedBy: directedBy.trim() || undefined,
           label: labelName.trim() || undefined,
+          lyrics: lyrics.trim() || undefined,
           duration: 0, 
         })
       });
@@ -163,6 +196,8 @@ export default function MusicManager() {
         setStarring("");
         setDirectedBy("");
         setLabelName("");
+        setLyrics("");
+        setLrcFileName("");
         mutate(); 
       }
     } catch (error: any) {
@@ -201,7 +236,9 @@ export default function MusicManager() {
       directedBy: song.directedBy || "",
       label: song.label || "",
       coverImage: song.coverImage || "",
+      lyrics: song.lyrics || "",
     });
+    setEditLrcFileName("");
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
@@ -309,6 +346,25 @@ export default function MusicManager() {
                   <Label htmlFor="labelName">Music Label</Label>
                   <Input id="labelName" value={labelName} onChange={(e) => setLabelName(e.target.value)} />
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="lyrics">Lyrics (LRC Format)</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="lrc-upload" className="cursor-pointer text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-2 py-1 rounded">
+                        Upload .lrc File
+                      </Label>
+                      <Input id="lrc-upload" type="file" accept=".lrc" className="hidden" onChange={(e) => handleLrcUpload(e, false)} />
+                      {lrcFileName && <span className="text-xs text-muted-foreground truncate max-w-[100px]">{lrcFileName}</span>}
+                    </div>
+                  </div>
+                  <textarea 
+                    id="lyrics" 
+                    value={lyrics} 
+                    onChange={(e) => setLyrics(e.target.value)} 
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 h-24 font-mono"
+                    placeholder="[00:12.00] Line of lyrics..."
+                  />
+                </div>
               </div>
               
               <div className="grid md:grid-cols-2 gap-4 pt-2">
@@ -316,13 +372,24 @@ export default function MusicManager() {
                   <Label htmlFor="audio-file">Audio File *</Label>
                   <div className="border-2 border-dashed rounded-lg p-6 hover:bg-muted/50 transition-colors text-center cursor-pointer relative h-32 flex flex-col items-center justify-center">
                     <Input 
-                      id="audio-file" type="file" accept="audio/*"
+                      id="audio-file" type="file"
+                      accept="audio/flac,audio/wav,audio/x-wav,audio/aiff,audio/x-aiff,audio/mpeg,audio/mp4,audio/m4a,audio/ogg,audio/*"
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)} required
+                      onChange={(e) => { setFile(e.target.files?.[0] || null); setLastUploadStrategy(null); }} required
                     />
                     <div className="flex flex-col items-center gap-2 pointer-events-none">
                       {file ? <CheckCircle2 className="w-6 h-6 text-primary" /> : <Upload className="w-6 h-6 text-muted-foreground" />}
-                      {file ? <p className="font-medium text-primary text-sm truncate max-w-[150px]">{file.name}</p> : <p className="text-sm font-medium">Select Audio</p>}
+                      {file ? (
+                        <div className="text-center">
+                          <p className="font-medium text-primary text-sm truncate max-w-[150px]">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(1)} MB · {file.name.split('.').pop()?.toUpperCase()}</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-sm font-medium">Select Audio</p>
+                          <p className="text-xs text-muted-foreground">FLAC · WAV · MP3 · M4A · OGG</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -347,7 +414,7 @@ export default function MusicManager() {
                 <div className="space-y-3 animate-in fade-in pt-4">
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span className="font-medium">Uploading & Compressing Audio... (Please wait)</span>
+                      <span className="font-medium">Uploading & Processing Audio... (Please wait)</span>
                       <span className="text-muted-foreground">{uploadProgress}%</span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-1.5"><div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${uploadProgress}%` }}/></div>
@@ -361,6 +428,12 @@ export default function MusicManager() {
                       <div className="w-full bg-secondary rounded-full h-1.5"><div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${coverProgress}%` }}/></div>
                     </div>
                   )}
+                </div>
+              )}
+              {lastUploadStrategy && !uploading && (
+                <div className="flex items-center gap-2 rounded-md bg-green-500/10 border border-green-500/20 px-3 py-2 text-xs text-green-700 dark:text-green-400 animate-in fade-in">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span><span className="font-semibold">Stored as:</span> {lastUploadStrategy}</span>
                 </div>
               )}
             </CardContent>
@@ -481,6 +554,24 @@ export default function MusicManager() {
                   <div className="space-y-2">
                     <Label>Music Label</Label>
                     <Input value={editForm.label || ''} onChange={e => setEditForm({...editForm, label: e.target.value})} placeholder="e.g. Sony Music" />
+                  </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <div className="flex justify-between items-center">
+                      <Label>Lyrics (LRC Format)</Label>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="edit-lrc-upload" className="cursor-pointer text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-2 py-1 rounded">
+                          Upload .lrc File
+                        </Label>
+                        <Input id="edit-lrc-upload" type="file" accept=".lrc" className="hidden" onChange={(e) => handleLrcUpload(e, true)} />
+                        {editLrcFileName && <span className="text-xs text-muted-foreground truncate max-w-[100px]">{editLrcFileName}</span>}
+                      </div>
+                    </div>
+                    <textarea 
+                      value={editForm.lyrics || ''} 
+                      onChange={e => setEditForm({...editForm, lyrics: e.target.value})} 
+                      className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 h-24 font-mono"
+                      placeholder="[00:12.00] Line of lyrics..."
+                    />
                   </div>
                 </div>
 
