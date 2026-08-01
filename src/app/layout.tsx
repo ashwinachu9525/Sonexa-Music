@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { Navbar } from "@/components/Navbar";
-
-const inter = Inter({ subsets: ["latin"] });
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -20,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} flex h-screen overflow-hidden antialiased bg-background text-foreground`}>
+      <body className={`flex h-screen overflow-hidden antialiased bg-background text-foreground`} suppressHydrationWarning>
         <div className="hidden md:flex h-full">
           <Sidebar />
         </div>

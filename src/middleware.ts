@@ -8,7 +8,7 @@ export const config = {
 // Vercel Edge Middleware
 export function middleware(request: NextRequest) {
   // 1. Rate Limiting Setup (Placeholder for Upstash/Vercel KV in Edge runtime)
-  const ip = request.ip ?? '127.0.0.1';
+  const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1';
   
   // 2. Security & Caching Headers
   const response = NextResponse.next();
