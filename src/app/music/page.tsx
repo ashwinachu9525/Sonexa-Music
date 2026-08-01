@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { Upload, Plus, Music, Trash2, CheckCircle2, Play, Pencil, X, ImageIcon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -37,9 +38,22 @@ export default function MusicManager() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [coverProgress, setCoverProgress] = useState(0);
   
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetcher = (url: string) => fetch(url).then(res => res.json());
+  const { data, error, isLoading: loading, mutate } = useSWR(
+    debouncedQuery ? `/api/v1/songs?search=${encodeURIComponent(debouncedQuery)}` : '/api/v1/songs',
+    fetcher,
+    { keepPreviousData: true }
+  );
+  
+  const songs: Song[] = data?.data || [];
 
   const [playingSong, setPlayingSong] = useState<Song | null>(null);
   
@@ -48,29 +62,6 @@ export default function MusicManager() {
   const [editCoverFile, setEditCoverFile] = useState<File | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editCoverProgress, setEditCoverProgress] = useState(0);
-
-  const fetchSongs = async (query = "") => {
-    try {
-      const url = query ? `/api/v1/songs?search=${encodeURIComponent(query)}` : '/api/v1/songs';
-      const res = await fetch(url);
-      if (res.ok) {
-        const responseData = await res.json();
-        // The API returns { data: [...], meta: {...} }
-        setSongs(responseData.data || []);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchSongs(searchQuery);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -400,7 +391,23 @@ export default function MusicManager() {
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto max-h-[700px] pt-4">
             {loading ? (
-              <p className="text-sm text-muted-foreground text-center mt-10">Loading songs...</p>
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 border border-border/50 rounded-lg bg-card animate-pulse">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-muted rounded-lg"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 w-32 bg-muted rounded"></div>
+                        <div className="h-3 w-20 bg-muted rounded"></div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="w-8 h-8 bg-muted rounded-full"></div>
+                      <div className="w-8 h-8 bg-muted rounded-full"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : songs.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center mt-10">No songs uploaded yet.</p>
             ) : (
@@ -513,22 +520,38 @@ export default function MusicManager() {
 
       {/* Floating Bottom Music Player */}
       {playingSong && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t p-4 flex items-center justify-center shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-in slide-in-from-bottom-5">
-          <div className="container max-w-5xl flex flex-col md:flex-row items-center gap-6">
-            <div className="flex items-center gap-4 min-w-[250px] w-full md:w-auto">
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t p-3 md:p-4 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-in slide-in-from-bottom-5">
+          <div className="container max-w-5xl flex flex-col md:flex-row items-center gap-3 md:gap-6 relative">
+            {/* Mobile Close Button */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setPlayingSong(null)} 
+              className="absolute -top-1 right-0 md:hidden h-8 w-8 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+
+            <div className="flex items-center gap-3 w-full md:w-auto pr-8 md:pr-0">
               {playingSong.coverImage ? (
-                <img src={playingSong.coverImage} className="w-14 h-14 rounded-md object-cover shadow-sm border border-border/50" />
+                <img src={playingSong.coverImage} className="w-12 h-12 md:w-14 md:h-14 rounded-md object-cover shadow-sm border border-border/50" />
               ) : (
-                <div className="w-14 h-14 bg-primary/10 rounded-md flex items-center justify-center shrink-0 border border-primary/20">
-                  <Music className="text-primary w-6 h-6" />
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-primary/10 rounded-md flex items-center justify-center shrink-0 border border-primary/20">
+                  <Music className="text-primary w-5 h-5 md:w-6 md:h-6" />
                 </div>
               )}
-              <div className="overflow-hidden">
+              <div className="overflow-hidden flex-1">
                 <p className="font-semibold text-sm truncate">{playingSong.title}</p>
                 <p className="text-xs text-muted-foreground truncate">{playingSong.musicBy || "Admin Preview"}</p>
               </div>
             </div>
-            <audio controls autoPlay src={playingSong.fileUrl} className="w-full flex-1" />
+            
+            {/* Audio Element with custom class to make it smaller on mobile */}
+            <div className="w-full flex-1">
+              <audio controls autoPlay src={playingSong.fileUrl} className="w-full h-10 md:h-12 outline-none" />
+            </div>
+            
+            {/* Desktop Close Button */}
             <Button variant="ghost" size="sm" onClick={() => setPlayingSong(null)} className="hidden md:flex shrink-0">
               Close
             </Button>

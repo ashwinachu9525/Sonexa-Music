@@ -3,6 +3,7 @@ import { Users, Music, PlayCircle, HardDrive, Database, Server, Cloud } from "lu
 import prisma from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { checkR2Health } from "@/lib/storage";
+import { CustomBarChart } from "@/components/CustomBarChart";
 
 async function getStats() {
   try {
@@ -94,6 +95,18 @@ export default async function Dashboard() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Analytics Chart Section */}
+      {stats.chartData && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-lg">Daily Streams (Last 7 Days)</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <CustomBarChart data={stats.chartData} height={200} />
+          </CardContent>
+        </Card>
+      )}
       
       {/* System Health Section */}
       <h2 className="text-xl font-bold tracking-tight mt-4">System Health Monitors</h2>

@@ -13,7 +13,11 @@ export async function GET(request: Request) {
   if (!search) {
     const cached = await redis.get(cacheKey);
     if (cached) {
-      return NextResponse.json(JSON.parse(cached));
+      return NextResponse.json(JSON.parse(cached), {
+        headers: {
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
+        }
+      });
     }
   }
 
@@ -47,12 +51,16 @@ export async function GET(request: Request) {
 
   const total = await prisma.song.count({ where: whereClause });
 
+  const headers = {
+    'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
+  };
+
   if (!search) {
     const responseData = { data: modifiedSongs, meta: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) } };
     await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 60);
-    return NextResponse.json(responseData);
+    return NextResponse.json(responseData, { headers });
   }
-  return NextResponse.json({ data: modifiedSongs, meta: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) } });
+  return NextResponse.json({ data: modifiedSongs, meta: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) } }, { headers });
 }
 
 export async function POST(request: Request) {
