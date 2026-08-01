@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { getOrComputeCache } from '@/lib/cache';
+import { logger } from '@/lib/logger';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const s3Client = new S3Client({
@@ -15,7 +17,16 @@ const s3Client = new S3Client({
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const song = await prisma.song.findUnique({ where: { id } });
+    const cacheKey = `song_db_info:${id}`;
+    
+    // Cache the DB response for 24 hours since file URLs rarely change
+    const song = await getOrComputeCache(cacheKey, 86400, async () => {
+      return prisma.song.findUnique({ 
+        where: { id },
+        select: { fileUrl: true }
+      });
+    });
+
     if (!song || !song.fileUrl) {
       return new NextResponse('Song not found', { status: 404 });
     }
@@ -68,7 +79,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
 
   } catch (error: any) {
-    console.error('Error proxying song stream:', error.message || error);
+    logger.error({ err: error, songId: (await params).id }, 'Error proxying song stream');
     return new NextResponse('Error streaming song', { status: 500 });
   }
 }

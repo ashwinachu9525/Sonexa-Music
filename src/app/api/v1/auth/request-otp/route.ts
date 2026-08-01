@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { redis } from '@/lib/redis';
+import { logger } from '@/lib/logger';
+import { rateLimit } from '@/lib/rate-limit';
 
 // Configure nodemailer with Yahoo SMTP
 const transporter = nodemailer.createTransport({
@@ -23,6 +25,13 @@ export async function POST(request: Request) {
     }
     if (!password) {
       return NextResponse.json({ error: 'Password is required' }, { status: 400 });
+    }
+
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const limitResult = await rateLimit(`otp:${email}:${ip}`, 3, 600); // 3 attempts per 10 mins
+    
+    if (!limitResult.success) {
+      return NextResponse.json({ error: 'Too many OTP requests. Try again later.' }, { status: 429 });
     }
 
     // Generate a 6-digit OTP
@@ -54,7 +63,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: 'OTP sent successfully' });
   } catch (error: any) {
-    console.error('Error sending OTP:', error);
+    logger.error({ err: error, email: (await request.clone().json().catch(() => ({}))).email }, 'Error sending OTP');
     return NextResponse.json({ error: 'Failed to send OTP email' }, { status: 500 });
   }
 }

@@ -7,14 +7,31 @@ import { format } from "date-fns";
 export const revalidate = 0; // Disable cache for this page
 
 export default async function UsersPage() {
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      _count: {
-        select: { playlists: true, downloads: true, history: true }
+  let users: any[] = [];
+  let dbError = null;
+  try {
+    users = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: { playlists: true, downloads: true, history: true }
+        }
       }
-    }
-  });
+    });
+  } catch (error: any) {
+    console.error("Prisma error:", error);
+    dbError = error.message || String(error);
+  }
+
+  if (dbError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <h2 className="text-2xl font-bold text-red-500 mb-4">Database Error</h2>
+        <p className="text-muted-foreground">{dbError}</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 max-w-7xl mx-auto">

@@ -6,9 +6,10 @@ import { format } from "date-fns";
 
 export const revalidate = 0;
 
-export default async function UserDetailsPage({ params }: { params: { id: string } }) {
+export default async function UserDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
   const user = await prisma.user.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     include: {
       _count: {
         select: { playlists: true, downloads: true, history: true, favorites: true }

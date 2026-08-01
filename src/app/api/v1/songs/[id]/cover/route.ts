@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { getOrComputeCache } from '@/lib/cache';
+import { logger } from '@/lib/logger';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const s3Client = new S3Client({
@@ -15,7 +17,16 @@ const s3Client = new S3Client({
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const song = await prisma.song.findUnique({ where: { id } });
+    const cacheKey = `song_db_info_cover:${id}`;
+    
+    // Cache the DB response for 24 hours since cover URLs rarely change
+    const song = await getOrComputeCache(cacheKey, 86400, async () => {
+      return prisma.song.findUnique({ 
+        where: { id },
+        select: { coverImage: true }
+      });
+    });
+
     if (!song || !song.coverImage) {
       return new NextResponse('Cover image not found', { status: 404 });
     }
@@ -54,7 +65,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
 
   } catch (error: any) {
-    console.error('Error proxying cover image stream:', error.message || error);
+    logger.error({ err: error, songId: (await params).id }, 'Error proxying cover image stream');
     return new NextResponse('Error streaming cover image', { status: 500 });
   }
 }

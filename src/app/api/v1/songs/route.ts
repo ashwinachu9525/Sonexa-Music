@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { getOrComputeCache, clearCacheByPrefix } from '@/lib/cache';
+import { logger } from '@/lib/logger';
 import { redis } from '@/lib/redis';
 
 export async function GET(request: Request) {
@@ -8,59 +10,66 @@ export async function GET(request: Request) {
   const limit = searchParams.get('limit') || '20';
   const search = searchParams.get('search');
 
-  const cacheKey = `songs:page:${page}:limit:${limit}:search:${search || 'none'}`;
-  
-  if (!search) {
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return NextResponse.json(JSON.parse(cached), {
-        headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
-        }
+  try {
+    const cacheKey = `songs:page:${page}:limit:${limit}:search:${search || 'none'}`;
+    
+    // We only cache if there's no search query, or we can cache search queries with shorter TTL.
+    // For now, caching everything with stampede prevention.
+    const ttl = search ? 30 : 60; // 30s for search, 60s for standard pages
+
+    const responseData = await getOrComputeCache(cacheKey, ttl, async () => {
+      const skip = (Number(page) - 1) * Number(limit);
+      
+      const whereClause = search ? {
+        OR: [
+          { title: { contains: search, mode: 'insensitive' as const } },
+          { artist: { name: { contains: search, mode: 'insensitive' as const } } }
+        ]
+      } : {};
+
+      const songs = await prisma.song.findMany({
+        skip,
+        take: Number(limit),
+        where: whereClause,
+        select: {
+          id: true, title: true, duration: true, coverImage: true,
+          codec: true, container: true, sampleRate: true, bitDepth: true,
+          bitrate: true, channels: true, isLossless: true, isHiRes: true,
+          isDolbyAtmos: true, isSpatialAudio: true,
+          artist: { select: { id: true, name: true } },
+          album: { select: { id: true, title: true } }
+        },
+        orderBy: { createdAt: 'desc' }
       });
-    }
-  }
 
-  const skip = (Number(page) - 1) * Number(limit);
-  
-  const whereClause = search ? {
-    OR: [
-      { title: { contains: search, mode: 'insensitive' as const } },
-      { artist: { name: { contains: search, mode: 'insensitive' as const } } }
-    ]
-  } : {};
+      const protocol = request.headers.get('x-forwarded-proto') || 'http';
+      const host = request.headers.get('host') || 'localhost:3000';
+      const baseUrl = `${protocol}://${host}`;
 
-  const songs = await prisma.song.findMany({
-    skip,
-    take: Number(limit),
-    where: whereClause,
-    include: { artist: true, album: true },
-    orderBy: { createdAt: 'desc' }
-  });
+      // Rewrite the URLs so mobile clients use our CDN-cacheable proxy routes
+      const modifiedSongs = songs.map(song => ({
+        ...song,
+        fileUrl: `${baseUrl}/api/v1/songs/${song.id}/play`,
+        coverImage: song.coverImage ? `${baseUrl}/api/v1/songs/${song.id}/cover` : null
+      }));
 
-  const protocol = request.headers.get('x-forwarded-proto') || 'http';
-  const host = request.headers.get('host') || 'localhost:3000';
-  const baseUrl = `${protocol}://${host}`;
+      const total = await prisma.song.count({ where: whereClause });
 
-  // Rewrite the URLs so mobile clients use our CDN-cacheable proxy routes
-  const modifiedSongs = songs.map(song => ({
-    ...song,
-    fileUrl: `${baseUrl}/api/v1/songs/${song.id}/play`,
-    coverImage: song.coverImage ? `${baseUrl}/api/v1/songs/${song.id}/cover` : null
-  }));
+      return {
+        data: modifiedSongs,
+        meta: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) }
+      };
+    });
 
-  const total = await prisma.song.count({ where: whereClause });
+    const headers = {
+      'Cache-Control': 'public, max-age=10, s-maxage=30, stale-while-revalidate=60'
+    };
 
-  const headers = {
-    'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
-  };
-
-  if (!search) {
-    const responseData = { data: modifiedSongs, meta: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) } };
-    await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 60);
     return NextResponse.json(responseData, { headers });
+  } catch (error: any) {
+    logger.error({ err: error }, "Songs GET API Error");
+    return NextResponse.json({ error: "Failed to fetch songs" }, { status: 500 });
   }
-  return NextResponse.json({ data: modifiedSongs, meta: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) } }, { headers });
 }
 
 export async function POST(request: Request) {
@@ -104,16 +113,23 @@ export async function POST(request: Request) {
         starring: data.starring,
         directedBy: data.directedBy,
         label: data.label,
+        codec: data.codec,
+        container: data.container,
+        sampleRate: data.sampleRate,
+        bitDepth: data.bitDepth,
+        bitrate: data.bitrate,
+        channels: data.channels,
+        isLossless: data.isLossless,
+        isHiRes: data.isHiRes,
+        isDolbyAtmos: data.isDolbyAtmos,
+        isSpatialAudio: data.isSpatialAudio,
       }
     });
 
-    const keys = await redis.keys('songs:page:*');
-    if (keys.length > 0) {
-      await redis.del(...keys);
-    }
+    await clearCacheByPrefix('songs:page:');
     return NextResponse.json(song, { status: 201 });
   } catch (error: any) {
-    console.error(error.message || 'Failed to create song');
+    logger.error({ err: error }, "Failed to create song");
     return NextResponse.json({ error: 'Failed to create song' }, { status: 500 });
   }
 }

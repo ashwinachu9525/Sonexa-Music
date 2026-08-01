@@ -8,6 +8,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
+import * as musicMetadata from 'music-metadata';
 
 const ffmpegPath = ffmpegInstaller.path;
 
@@ -61,6 +62,30 @@ export async function POST(req: NextRequest) {
       });
     });
 
+    // Extract metadata from the original uploaded file
+    let audioMetadata = {};
+    try {
+      const metadata = await musicMetadata.parseBuffer(originalBuffer, file.type || 'audio/mpeg');
+      const bitDepth = metadata.format.bitsPerSample || 16;
+      const sampleRate = metadata.format.sampleRate || 44100;
+      const isLosslessMeta = metadata.format.lossless || false;
+      const isHiRes = isLosslessMeta && (bitDepth >= 24 || sampleRate > 48000);
+      
+      audioMetadata = {
+        codec: metadata.format.codec,
+        container: metadata.format.container,
+        sampleRate: sampleRate,
+        bitDepth: bitDepth,
+        bitrate: metadata.format.bitrate,
+        channels: metadata.format.numberOfChannels,
+        isLossless: isLosslessMeta,
+        isHiRes: isHiRes,
+        duration: metadata.format.duration
+      };
+    } catch (metaErr) {
+      console.warn('Failed to extract audio metadata:', metaErr);
+    }
+
     // Upload the compressed file to R2
     const key = `audio/${tempId}.${outputExt}`;
     const contentType = isLossless ? 'audio/flac' : 'audio/ogg';
@@ -86,7 +111,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true,
       url: publicUrl,
-      key: key
+      key: key,
+      metadata: audioMetadata
     });
     
   } catch (error) {
