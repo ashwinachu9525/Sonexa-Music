@@ -163,7 +163,7 @@ export default function MusicManager() {
         setStarring("");
         setDirectedBy("");
         setLabelName("");
-        fetchSongs(); 
+        mutate(); 
       }
     } catch (error: any) {
       console.error(error);
@@ -182,7 +182,7 @@ export default function MusicManager() {
       const res = await fetch(`/api/v1/songs/${id}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success("Song deleted!");
-        fetchSongs();
+        mutate();
       }
       else toast.error("Failed to delete song.");
     } catch (e) {
@@ -248,7 +248,7 @@ export default function MusicManager() {
         toast.success("Song updated successfully!");
         setEditingSong(null);
         setEditCoverFile(null);
-        fetchSongs();
+        mutate();
       } else {
         const errorData = await res.json();
         toast.error(errorData.error || "Failed to update song");
