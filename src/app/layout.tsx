@@ -21,10 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} flex h-screen overflow-hidden antialiased bg-background text-foreground`}>
-        <Sidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="hidden md:flex h-full">
+          <Sidebar />
+        </div>
+        <div className="flex flex-col flex-1 overflow-hidden w-full">
           <Navbar />
-          <main className="flex-1 overflow-y-auto p-6 bg-muted/10">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-muted/10">
             {children}
           </main>
         </div>

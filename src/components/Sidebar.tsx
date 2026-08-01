@@ -3,7 +3,7 @@ import { LayoutDashboard, Music, Users, Settings, Disc } from "lucide-react";
 
 export function Sidebar() {
   return (
-    <aside className="w-64 border-r border-border/50 bg-black h-screen flex flex-col p-4 shadow-2xl">
+    <aside className="w-64 border-r border-border/50 bg-black h-full flex flex-col p-4 shadow-2xl">
       <div className="flex items-center gap-3 px-2 py-6 mb-4">
         <div className="bg-primary/10 p-2 rounded-xl">
           <Disc className="h-7 w-7 text-primary animate-[spin_4s_linear_infinite]" />

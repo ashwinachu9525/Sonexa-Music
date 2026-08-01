@@ -30,12 +30,14 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
-    const songs = favorites.map(fav => ({
-      ...fav.song,
-      fileUrl: `${baseUrl}/api/v1/songs/${fav.song.id}/play`,
-      coverImage: fav.song.coverImage ? `${baseUrl}/api/v1/songs/${fav.song.id}/cover` : null,
-      isFavorite: true
-    }));
+    const songs = favorites
+      .filter(fav => fav.song != null)
+      .map(fav => ({
+        ...fav.song,
+        fileUrl: `${baseUrl}/api/v1/songs/${fav.song.id}/play`,
+        coverImage: fav.song.coverImage ? `${baseUrl}/api/v1/songs/${fav.song.id}/cover` : null,
+        isFavorite: true
+      }));
 
     return NextResponse.json({ songs });
   } catch (error: any) {
