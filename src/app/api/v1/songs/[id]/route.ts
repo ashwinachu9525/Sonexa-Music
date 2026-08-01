@@ -42,6 +42,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (data.starring !== undefined) updateData.starring = data.starring;
     if (data.directedBy !== undefined) updateData.directedBy = data.directedBy;
     if (data.label !== undefined) updateData.label = data.label;
+    if (data.lyrics !== undefined) updateData.lyrics = data.lyrics;
     
     if (albumId) updateData.albumId = albumId;
     if (artistId) updateData.artistId = artistId;

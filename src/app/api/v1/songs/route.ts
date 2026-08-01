@@ -35,7 +35,8 @@ export async function GET(request: Request) {
           id: true, title: true, duration: true, coverImage: true,
           codec: true, container: true, sampleRate: true, bitDepth: true,
           bitrate: true, channels: true, isLossless: true, isHiRes: true,
-          isDolbyAtmos: true, isSpatialAudio: true,
+          isDolbyAtmos: true, isSpatialAudio: true, lyrics: true,
+          musicBy: true, starring: true, directedBy: true, label: true,
           artist: { select: { id: true, name: true } },
           album: { select: { id: true, title: true } }
         },
