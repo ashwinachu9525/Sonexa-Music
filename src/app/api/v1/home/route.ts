@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       const recentlyPlayed = await prisma.song.findMany({
         take: 10,
         select: {
-          id: true, title: true, coverImage: true, duration: true, fileUrl: true,
+          id: true, title: true, coverImage: true, duration: true, fileUrl: true, lyrics: true,
           artist: { select: { id: true, name: true } },
           album: { select: { id: true, title: true } }
         },
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       const trending = await prisma.song.findMany({
         take: 5,
         select: {
-          id: true, title: true, coverImage: true, duration: true, fileUrl: true,
+          id: true, title: true, coverImage: true, duration: true, fileUrl: true, lyrics: true,
           artist: { select: { id: true, name: true } },
           album: { select: { id: true, title: true } }
         },
