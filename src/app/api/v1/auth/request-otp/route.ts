@@ -4,6 +4,7 @@ import { redis } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { rateLimit } from '@/lib/rate-limit';
 import { decryptPayload } from '@/lib/encryption';
+import prisma from '@/lib/db';
 
 // Configure nodemailer with Yahoo SMTP
 const transporter = nodemailer.createTransport({
@@ -37,6 +38,14 @@ export async function POST(request: Request) {
     }
     if (!password) {
       return NextResponse.json({ error: 'Password is required' }, { status: 400 });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return NextResponse.json({ error: 'Email is already registered' }, { status: 400 });
     }
 
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
