@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import { redis } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { rateLimit } from '@/lib/rate-limit';
+import { decryptPayload } from '@/lib/encryption';
 
 // Configure nodemailer with Yahoo SMTP
 const transporter = nodemailer.createTransport({
@@ -17,7 +18,18 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
+    const rawData = await request.json();
+    
+    let data = rawData;
+    if (rawData.encryptedData) {
+      const decryptedString = decryptPayload(rawData.encryptedData);
+      if (decryptedString) {
+        data = JSON.parse(decryptedString);
+      } else {
+        return NextResponse.json({ error: 'Failed to decrypt payload' }, { status: 400 });
+      }
+    }
+
     const { email, password, name, gender, language } = data;
 
     if (!email || !email.includes('@')) {

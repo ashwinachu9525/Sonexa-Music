@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LayoutDashboard, Music, Users, Settings, Disc } from "lucide-react";
+import { LogoutButton } from "./LogoutButton";
 
 export function Sidebar() {
   return (
@@ -13,7 +14,7 @@ export function Sidebar() {
         </span>
       </div>
       
-      <nav className="flex flex-col gap-2">
+      <nav className="flex flex-col gap-2 flex-1">
         <Link href="/" className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted transition-all duration-200 text-sm font-semibold text-muted-foreground hover:text-foreground group">
           <LayoutDashboard className="h-5 w-5 group-hover:text-primary transition-colors" />
           Dashboard
@@ -30,6 +31,10 @@ export function Sidebar() {
           <Settings className="h-5 w-5 group-hover:text-primary transition-colors" />
           Settings
         </Link>
+
+        <div className="mt-auto pt-4 border-t border-border/50">
+          <LogoutButton />
+        </div>
       </nav>
     </aside>
   );

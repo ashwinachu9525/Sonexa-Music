@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import { Upload, Plus, Music, Trash2, CheckCircle2, Play, Pencil, X, ImageIcon, Search } from "lucide-react";
+import { Upload, Plus, Music, Trash2, CheckCircle2, Play, Pencil, X, ImageIcon, Search, Wand2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,9 @@ export default function MusicManager() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [coverProgress, setCoverProgress] = useState(0);
   const [lastUploadStrategy, setLastUploadStrategy] = useState<string | null>(null);
+  
+  const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
+  const [editIsFetchingLyrics, setEditIsFetchingLyrics] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -92,6 +95,47 @@ export default function MusicManager() {
       toast.error("Error reading LRC file");
     };
     reader.readAsText(file);
+  };
+
+  const handleAutoFetchLyrics = async (isEdit: boolean = false) => {
+    const queryTitle = isEdit ? editForm.title : title;
+    const queryArtist = isEdit ? (editForm.musicBy || editForm.starring) : (artistName || musicBy || starring);
+    
+    if (!queryTitle) {
+      toast.error("Please enter a song title first.");
+      return;
+    }
+
+    const setLoader = isEdit ? setEditIsFetchingLyrics : setIsFetchingLyrics;
+    setLoader(true);
+
+    try {
+      const q = encodeURIComponent(`${queryTitle} ${queryArtist || ''}`.trim());
+      const res = await fetch(`https://lrclib.net/api/search?q=${q}`);
+      
+      if (!res.ok) throw new Error("Failed to fetch lyrics");
+      
+      const data = await res.json();
+      const match = data.find((d: any) => d.syncedLyrics);
+      
+      if (match && match.syncedLyrics) {
+        if (isEdit) {
+          setEditForm(prev => ({ ...prev, lyrics: match.syncedLyrics }));
+          setEditLrcFileName("lrclib-auto-fetch.lrc");
+        } else {
+          setLyrics(match.syncedLyrics);
+          setLrcFileName("lrclib-auto-fetch.lrc");
+        }
+        toast.success("Lyrics found and synced!");
+      } else {
+        toast.error("No synced lyrics found for this song.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Error fetching lyrics.");
+    } finally {
+      setLoader(false);
+    }
   };
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -347,11 +391,22 @@ export default function MusicManager() {
                   <Input id="labelName" value={labelName} onChange={(e) => setLabelName(e.target.value)} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mb-1">
                     <Label htmlFor="lyrics">Lyrics (LRC Format)</Label>
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="lrc-upload" className="cursor-pointer text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-2 py-1 rounded">
-                        Upload .lrc File
+                      <Button 
+                        type="button" 
+                        variant="secondary" 
+                        size="sm" 
+                        className="h-7 text-xs px-2"
+                        onClick={() => handleAutoFetchLyrics(false)}
+                        disabled={isFetchingLyrics}
+                      >
+                        {isFetchingLyrics ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wand2 className="w-3 h-3 mr-1" />}
+                        Auto-Fetch
+                      </Button>
+                      <Label htmlFor="lrc-upload" className="cursor-pointer text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-2 py-1 rounded flex items-center h-7">
+                        Upload .lrc
                       </Label>
                       <Input id="lrc-upload" type="file" accept=".lrc" className="hidden" onChange={(e) => handleLrcUpload(e, false)} />
                       {lrcFileName && <span className="text-xs text-muted-foreground truncate max-w-[100px]">{lrcFileName}</span>}
@@ -556,11 +611,22 @@ export default function MusicManager() {
                     <Input value={editForm.label || ''} onChange={e => setEditForm({...editForm, label: e.target.value})} placeholder="e.g. Sony Music" />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-1">
                       <Label>Lyrics (LRC Format)</Label>
                       <div className="flex items-center gap-2">
-                        <Label htmlFor="edit-lrc-upload" className="cursor-pointer text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-2 py-1 rounded">
-                          Upload .lrc File
+                        <Button 
+                          type="button" 
+                          variant="secondary" 
+                          size="sm" 
+                          className="h-7 text-xs px-2"
+                          onClick={() => handleAutoFetchLyrics(true)}
+                          disabled={editIsFetchingLyrics}
+                        >
+                          {editIsFetchingLyrics ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wand2 className="w-3 h-3 mr-1" />}
+                          Auto-Fetch
+                        </Button>
+                        <Label htmlFor="edit-lrc-upload" className="cursor-pointer text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-2 py-1 rounded flex items-center h-7">
+                          Upload .lrc
                         </Label>
                         <Input id="edit-lrc-upload" type="file" accept=".lrc" className="hidden" onChange={(e) => handleLrcUpload(e, true)} />
                         {editLrcFileName && <span className="text-xs text-muted-foreground truncate max-w-[100px]">{editLrcFileName}</span>}

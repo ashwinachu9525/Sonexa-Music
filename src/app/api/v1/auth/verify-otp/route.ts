@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { redis } from '@/lib/redis';
-
 import bcrypt from 'bcryptjs';
+import { generateToken } from '@/lib/jwt';
 
 export async function POST(request: Request) {
   try {
@@ -49,11 +49,12 @@ export async function POST(request: Request) {
       },
     });
 
-    // In a real production app, you would generate and return a JWT session token here.
-    // For this implementation, returning the user object acts as successful authentication.
+    const token = await generateToken({ id: user.id, email: user.email });
+    
     return NextResponse.json({ 
       message: 'Verification successful',
-      user 
+      user,
+      token
     });
 
   } catch (error: any) {

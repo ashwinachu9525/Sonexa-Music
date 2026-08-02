@@ -2,16 +2,31 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
 };
 
 // Vercel Edge Middleware
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // 1. Check Admin UI Protection (Only for non-API, non-login pages)
+  if (!pathname.startsWith('/api') && pathname !== '/login') {
+    const token = request.cookies.get('admin_token');
+    if (!token || token.value !== 'authorized') {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
   // 1. Rate Limiting Setup (Placeholder for Upstash/Vercel KV in Edge runtime)
   const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1';
   
   // 2. Security & Caching Headers
-  const response = NextResponse.next();
+  let response = NextResponse.next();
+  if (pathname === '/login') {
+      response = NextResponse.next();
+  }
   
   // CORS
   response.headers.set('Access-Control-Allow-Origin', '*');
