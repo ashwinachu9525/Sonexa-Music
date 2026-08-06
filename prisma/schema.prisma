@@ -214,3 +214,11 @@ model SystemSettings {
   brandColor            String   @default("#primary")
   updatedAt             DateTime @updatedAt
 }
+
+model DevicePairing {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  token     String?  // The user's JWT token, populated once paired
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
