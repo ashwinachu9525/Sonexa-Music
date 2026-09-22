@@ -41,6 +41,7 @@ export interface NormalizedSong {
     thumbnail?: string | null;
     cover?: string | null;
   };
+  language?: string | null;
   audioQuality?: AudioQuality;
 }
 
@@ -80,6 +81,7 @@ export interface SearchParams {
   artist?: string;
   album?: string;
   genre?: string;
+  language?: string;
 }
 
 export interface MusicProvider {

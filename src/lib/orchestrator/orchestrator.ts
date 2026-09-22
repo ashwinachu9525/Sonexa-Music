@@ -201,6 +201,18 @@ export class MusicOrchestrator {
     }
     return provider.getStream(id);
   }
+
+  async getTrendingSongs(language = 'hindi', limit = 20): Promise<NormalizedSong[]> {
+    const lang = language.trim().toLowerCase();
+    const query = `trending ${lang} top songs`;
+    const searchRes = await this.search({
+      q: query,
+      source: 'all',
+      limit,
+      language: lang,
+    });
+    return searchRes.items;
+  }
 }
 
 export const musicOrchestrator = new MusicOrchestrator();
