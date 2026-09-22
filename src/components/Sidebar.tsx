@@ -23,6 +23,10 @@ export function Sidebar() {
           <Music className="h-5 w-5 group-hover:text-primary transition-colors" />
           Music Manager
         </Link>
+        <Link href="/music/orchestrator" className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted transition-all duration-200 text-sm font-semibold text-muted-foreground hover:text-foreground group">
+          <Disc className="h-5 w-5 group-hover:text-primary transition-colors" />
+          Orchestrator API
+        </Link>
         <Link href="/users" className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted transition-all duration-200 text-sm font-semibold text-muted-foreground hover:text-foreground group">
           <Users className="h-5 w-5 group-hover:text-primary transition-colors" />
           Users
